@@ -1,0 +1,8 @@
+venv/
+clipboard.ico
+app.manifest
+create_icon.py
+LANClipboard.spec
+setup.py
+build/
+__pycache__/
