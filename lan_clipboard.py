@@ -19,19 +19,15 @@ class LANClipboard:
     def __init__(self):
         self.window = tk.Tk()
         self.window.title("LAN Clipboard")
-        # Increase initial window size
-        self.window.geometry("800x600")  # Changed from "600x400"
+        self.window.geometry("800x600")
         
-        # Set window icon
         try:
             self.window.iconbitmap("clipboard.ico")
         except Exception as e:
             print(f"Icon file not found: {e}")
         
-        # Enhanced style configuration
         style = ttk.Style()
         
-        # Configure styles
         style.configure('Custom.TButton', 
             padding=10,
             font=('Segoe UI', 10)
@@ -47,15 +43,12 @@ class LANClipboard:
             padding=5
         )
         
-        # Set window background and properties
         self.window.configure(bg="#f5f6fa")
         self.window.resizable(True, True)
         
-        # Main container with padding
         self.main_frame = ttk.Frame(self.window, style='Custom.TFrame')
         self.main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
         
-        # Title label
         title_label = ttk.Label(
             self.main_frame,
             text="LAN Clipboard",
@@ -64,7 +57,6 @@ class LANClipboard:
         )
         title_label.pack(pady=(0, 20))
         
-        # Replace key frames with device selection
         self.devices_frame = ttk.Frame(self.main_frame, style='Custom.TFrame')
         self.devices_frame.pack(pady=5, fill=tk.X)
         
@@ -90,7 +82,6 @@ class LANClipboard:
         )
         self.refresh_button.pack(side=tk.LEFT, padx=5)
 
-        # Status label with better visibility
         self.status_label = ttk.Label(
             self.main_frame,
             text="Ready to share",
@@ -98,13 +89,29 @@ class LANClipboard:
         )
         self.status_label.pack(side=tk.TOP, pady=5)
         
-        # Setup multicast for auto-discovery
+        self.connection_frame = ttk.Frame(self.main_frame, style='Custom.TFrame')
+        self.connection_frame.pack(fill=tk.X, pady=2)
+
+        self.connection_indicator = ttk.Label(
+            self.connection_frame,
+            text="●",
+            style='Custom.TLabel',
+            font=('Segoe UI', 14)
+        )
+        self.connection_indicator.pack(side=tk.LEFT, padx=5)
+
+        self.connection_status = ttk.Label(
+            self.connection_frame,
+            text="Not Connected",
+            style='Custom.TLabel'
+        )
+        self.connection_status.pack(side=tk.LEFT, padx=5)
+
         self.MCAST_GRP = '224.1.1.1'
         self.MCAST_PORT = 5007
         
         self.local_ip = self.get_local_ip()
         try:
-            # Get network from local IP (assuming /24 subnet)
             self.network = ipaddress.IPv4Network(f"{self.local_ip}/24", strict=False)
         except Exception as e:
             print(f"Network setup error: {e}")
@@ -112,13 +119,9 @@ class LANClipboard:
         
         self.active_devices = []
 
-        # Fix encryption key setup
         self.setup_encryption()
-
-        # Start network services after UI setup
         self.setup_network()
 
-        # Text area with better styling
         self.text_frame = ttk.Frame(self.main_frame, style='Custom.TFrame')
         self.text_frame.pack(pady=10, fill=tk.BOTH, expand=True)
         
@@ -134,7 +137,6 @@ class LANClipboard:
         )
         self.text_area.pack(fill=tk.BOTH, side=tk.TOP, expand=True, padx=5)
         
-        # Configure text area colors
         self.text_area.configure(
             bg="white",
             fg="black",
@@ -142,11 +144,9 @@ class LANClipboard:
             selectforeground="white"
         )
 
-        # Button frame for better layout
         self.button_frame = ttk.Frame(self.main_frame, style='Custom.TFrame')
         self.button_frame.pack(pady=5, fill=tk.X)
 
-        # Share button with improved styling
         self.send_button = ttk.Button(
             self.button_frame,
             text="📝 Share",
@@ -155,7 +155,6 @@ class LANClipboard:
         )
         self.send_button.pack(pady=2)
 
-        # Add clipboard buttons
         self.clipboard_frame = ttk.Frame(self.button_frame, style='Custom.TFrame')
         self.clipboard_frame.pack(fill=tk.X, pady=5)
         
@@ -175,20 +174,17 @@ class LANClipboard:
         )
         self.paste_button.pack(side=tk.LEFT, padx=5)
 
-        # Add the controls frame right after the file_button
         self.file_button = ttk.Button(
             self.button_frame,
             text="Share File",
             command=self.share_file,
             style='Custom.TButton'
         )
-        self.file_button.pack(pady=2)  # Reduced pady from 5 to 2
+        self.file_button.pack(pady=2)
 
-        # Add controls frame HERE, immediately after file_button
         self.controls_frame = ttk.Frame(self.button_frame, style='Custom.TFrame')
-        self.controls_frame.pack(fill=tk.X, pady=2)  # Reduced pady from 5 to 2
+        self.controls_frame.pack(fill=tk.X, pady=2)
 
-        # Settings button
         self.settings_button = ttk.Button(
             self.controls_frame,
             text="⚙️ Settings",
@@ -198,7 +194,6 @@ class LANClipboard:
         )
         self.settings_button.pack(side=tk.LEFT, padx=5, expand=True)
 
-        # Clear button
         self.clear_button = ttk.Button(
             self.controls_frame,
             text="🗑️ Clear",
@@ -208,7 +203,6 @@ class LANClipboard:
         )
         self.clear_button.pack(side=tk.LEFT, padx=5, expand=True)
 
-        # Help button
         self.help_button = ttk.Button(
             self.controls_frame,
             text="❓ Help",
@@ -218,12 +212,9 @@ class LANClipboard:
         )
         self.help_button.pack(side=tk.LEFT, padx=5, expand=True)
 
-        # Move the controls_frame placement to be after the history_frame and before the key_frame
-        # Add history tracking and dropdown (existing code)
         self.history = []
         self.max_history = 10
         
-        # Add history dropdown
         self.history_frame = ttk.Frame(self.main_frame, style='Custom.TFrame')
         self.history_frame.pack(fill=tk.X, pady=5)
         
@@ -235,7 +226,6 @@ class LANClipboard:
         self.history_combo.pack(side=tk.LEFT, padx=5)
         self.history_combo.bind('<<ComboboxSelected>>', self.load_history)
 
-        # Add key management
         self.key_frame = ttk.Frame(self.main_frame, style='Custom.TFrame')
         self.key_frame.pack(fill=tk.X, pady=5)
 
@@ -249,7 +239,6 @@ class LANClipboard:
             style='Custom.TButton'
         ).pack(side=tk.LEFT, padx=2)
 
-        # Add Generate Key button
         ttk.Button(
             self.key_frame,
             text="Generate Key",
@@ -273,21 +262,17 @@ class LANClipboard:
         """Scan the network for active devices using optimized scanning"""
         try:
             self.status_label.config(text="Scanning network...")
-            self.active_devices = []  # Reset the list
+            self.active_devices = []
             
-            # Add local machine
             self.active_devices.append(("This PC", self.local_ip))
             
-            # Get subnet from local IP
             ip_parts = self.local_ip.split('.')
             subnet = '.'.join(ip_parts[:3])
             
-            # Scan only common device IPs to reduce load
-            common_ports = [80, 443, 8080, 5000]  # Common ports to check
+            common_ports = [80, 443, 8080, 5000]  
             ips_to_scan = [f"{subnet}.{i}" for i in range(1, 255) if f"{subnet}.{i}" != self.local_ip]
             
-            # Use ThreadPoolExecutor with limited workers
-            with ThreadPoolExecutor(max_workers=20) as executor:  # Reduced from 50
+            with ThreadPoolExecutor(max_workers=20) as executor:
                 future_to_ip = {
                     executor.submit(self.check_host, ip, common_ports): ip 
                     for ip in ips_to_scan
@@ -305,7 +290,6 @@ class LANClipboard:
                     except Exception:
                         continue
             
-            # Update combobox
             self.devices_combo['values'] = [f"{name} - {ip}" for name, ip in self.active_devices]
             if self.devices_combo['values']:
                 self.devices_combo.set(self.devices_combo['values'][0])
@@ -320,7 +304,7 @@ class LANClipboard:
         for port in ports:
             try:
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-                    sock.settimeout(0.5)  # 500ms timeout
+                    sock.settimeout(0.5)
                     result = sock.connect_ex((ip, port))
                     if result == 0:
                         return True
@@ -339,21 +323,18 @@ class LANClipboard:
     def setup_network(self):
         """Setup network services"""
         try:
-            # Network setup
             self.HOST = '0.0.0.0'
             self.PORT = 5000
             self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.server_socket.bind((self.HOST, self.PORT))
             self.server_socket.listen()
 
-            # Start threads
             self.listen_thread = threading.Thread(target=self.listen_for_connections, daemon=True)
             self.listen_thread.start()
 
             self.scan_thread = threading.Thread(target=self.scan_network, daemon=True)
             self.scan_thread.start()
 
-            # Start discovery service
             self.discovery_thread = threading.Thread(target=self.run_discovery_service, daemon=True)
             self.discovery_thread.start()
 
@@ -366,13 +347,11 @@ class LANClipboard:
         while True:
             try:
                 client_socket, address = self.server_socket.accept()
-                client_socket.settimeout(10)  # 10 second timeout
+                client_socket.settimeout(10)
 
-                # Update status to receiving
                 self.window.after(0, lambda: self.connection_indicator.config(foreground='orange'))
                 self.window.after(0, lambda: self.connection_status.config(text="Receiving..."))
 
-                # Receive data
                 data = b""
                 while True:
                     chunk = client_socket.recv(8192)
@@ -386,7 +365,6 @@ class LANClipboard:
                         received_data = json.loads(decrypted_data.decode())
 
                         if received_data.get("type") == "file":
-                            # Handle received file
                             file_data = b64decode(received_data["data"])
                             file_name = received_data["name"]
                             save_path = filedialog.asksaveasfilename(
@@ -400,7 +378,6 @@ class LANClipboard:
                                     text=f"Received file from {address[0]}"
                                 ))
                         else:
-                            # Handle received text
                             self.window.after(0, lambda: self.text_area.delete("1.0", tk.END))
                             self.window.after(0, lambda: self.text_area.insert("1.0", received_data["text"]))
                             self.window.after(0, lambda: self.add_to_history(received_data["text"]))
@@ -442,29 +419,24 @@ class LANClipboard:
                 selected = self.devices_combo.get()
                 target_ip = selected.split(' - ')[-1]
 
-                # Update status
                 self.connection_indicator.config(foreground='orange')
                 self.connection_status.config(text="Sending file...")
                 self.window.update()
 
-                # Create connection
                 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                client_socket.settimeout(10)  # Longer timeout for files
+                client_socket.settimeout(10)
                 client_socket.connect((target_ip, self.PORT))
 
-                # Read and send file
                 with open(file_path, 'rb') as f:
                     file_data = f.read()
                     file_name = os.path.basename(file_path)
 
-                    # Prepare data packet
                     data_packet = {
                         "type": "file",
                         "name": file_name,
                         "data": b64encode(file_data).decode()
                     }
 
-                    # Encrypt and send
                     encrypted_data = self.cipher_suite.encrypt(json.dumps(data_packet).encode())
                     client_socket.send(encrypted_data)
 
@@ -521,11 +493,10 @@ class LANClipboard:
     def update_encryption_key(self):
         try:
             new_key = self.key_entry.get().encode()
-            # Ensure key is valid Fernet key (32 url-safe base64-encoded bytes)
-            padded_key = new_key + b'=' * (-len(new_key) % 4)  # Add padding if needed
+            padded_key = new_key + b'=' * (-len(new_key) % 4)
             self.cipher_suite = Fernet(padded_key)
             self.status_label.config(text="Encryption key updated successfully")
-            self.key_entry.delete(0, tk.END)  # Clear the entry field
+            self.key_entry.delete(0, tk.END)
         except Exception as e:
             self.status_label.config(text="Invalid encryption key format")
             print(f"Key update error: {e}")
@@ -586,11 +557,9 @@ LAN Clipboard Help:
                 selected = self.devices_combo.get()
                 target_ip = selected.split(' - ')[-1]
                 
-                # Skip check if it's the local machine
                 if target_ip == self.local_ip:
                     self.update_status(connected=True, local=True)
                 else:
-                    # Try to establish a test connection
                     test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     test_socket.settimeout(1)
                     result = test_socket.connect_ex((target_ip, self.PORT))
@@ -601,8 +570,7 @@ LAN Clipboard Help:
             print(f"Connection check error: {e}")
             self.update_status(connected=False)
         
-        # Schedule next check
-        self.window.after(5000, self.check_connections)  # Check every 5 seconds
+        self.window.after(5000, self.check_connections)
 
     def update_status(self, connected=False, local=False):
         """Update the connection status indicators"""
@@ -624,21 +592,17 @@ LAN Clipboard Help:
         text = self.text_area.get("1.0", tk.END).strip()
         if text:
             try:
-                # Get selected device IP
                 selected = self.devices_combo.get()
                 target_ip = selected.split(' - ')[-1]
                 
-                # Update status to sending
                 self.connection_indicator.config(foreground='orange')
                 self.connection_status.config(text="Sending...")
                 self.window.update()
                 
-                # Create connection
                 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 client_socket.settimeout(5)
                 client_socket.connect((target_ip, self.PORT))
                 
-                # Encrypt and send data
                 encrypted_data = self.cipher_suite.encrypt(json.dumps({
                     "text": text
                 }).encode())
@@ -647,7 +611,6 @@ LAN Clipboard Help:
                 client_socket.close()
                 
                 self.status_label.config(text=f"Text shared with {selected}")
-                # Update status back to connected
                 self.update_status(connected=True)
             except Exception as e:
                 self.status_label.config(text="Error sharing text: Connection failed")
@@ -660,7 +623,6 @@ class SettingsDialog:
         self.dialog.title("Settings")
         self.dialog.geometry("300x200")
         
-        # Add settings options
         ttk.Label(self.dialog, text="Max History Items:").pack(pady=5)
         self.history_var = tk.StringVar(value="10")
         ttk.Entry(self.dialog, textvariable=self.history_var).pack()
@@ -672,7 +634,6 @@ class SettingsDialog:
         ttk.Button(self.dialog, text="Save", command=self.save_settings).pack(pady=10)
 
     def save_settings(self):
-        # Implement settings save logic
         self.dialog.destroy() 
         
 if __name__ == "__main__":
