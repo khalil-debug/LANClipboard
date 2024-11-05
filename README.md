@@ -18,7 +18,7 @@ A secure clipboard sharing application that allows text and file sharing between
 1. Clone the repository:
 
    ```bash
-   [git clone https://github.com/khalil-debug/LANClipboard.git](https://github.com/khalil-debug/LANClipboard.git)
+   git clone https://github.com/khalil-debug/LANClipboard.git
    cd LANClipboard
    ```
 
