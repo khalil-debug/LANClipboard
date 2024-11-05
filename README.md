@@ -36,6 +36,8 @@ A secure clipboard sharing application that allows text and file sharing between
    python lan_clipboard.py
    ```
 
+   or run the EXE file present in dist folder.
+
 2. The application will automatically:
    - Scan for other devices on the network
    - Start listening for incoming connections
