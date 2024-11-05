@@ -313,13 +313,21 @@ class LANClipboard:
         return False
 
     def setup_encryption(self):
-        """Setup encryption with proper key generation"""
+        """Setup encryption with a default keyword"""
         try:
-            self.cipher_suite = Fernet(Fernet.generate_key())
+            default_keyword = "LANClipboard2024"
+            key = self.keyword_to_key(default_keyword)
+            self.cipher_suite = Fernet(key)
         except Exception as e:
             print(f"Encryption setup error: {e}")
             self.status_label.config(text="Encryption setup failed")
-            
+
+    def keyword_to_key(self, keyword):
+        """Convert a keyword into a valid Fernet key"""
+        keyword = keyword.encode('utf-8')
+        keyword = keyword * (32 // len(keyword) + 1)
+        return b64encode(keyword[:32])
+
     def setup_network(self):
         """Setup network services"""
         try:
@@ -492,13 +500,17 @@ class LANClipboard:
 
     def update_encryption_key(self):
         try:
-            new_key = self.key_entry.get().encode()
-            padded_key = new_key + b'=' * (-len(new_key) % 4)
-            self.cipher_suite = Fernet(padded_key)
+            keyword = self.key_entry.get()
+            if not keyword:
+                self.status_label.config(text="Please enter a keyword")
+                return
+                
+            key = self.keyword_to_key(keyword)
+            self.cipher_suite = Fernet(key)
             self.status_label.config(text="Encryption key updated successfully")
             self.key_entry.delete(0, tk.END)
         except Exception as e:
-            self.status_label.config(text="Invalid encryption key format")
+            self.status_label.config(text="Invalid keyword format")
             print(f"Key update error: {e}")
 
     def generate_new_key(self):
