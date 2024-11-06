@@ -43,6 +43,15 @@ class LANClipboard:
             padding=5
         )
         
+        style.configure('TLabelframe', 
+            background="#f5f6fa"
+        )
+        
+        style.configure('TLabelframe.Label', 
+            background="#f5f6fa",
+            font=('Segoe UI', 10, 'bold')
+        )
+        
         self.window.configure(bg="#f5f6fa")
         self.window.resizable(True, True)
         
@@ -57,43 +66,20 @@ class LANClipboard:
         )
         title_label.pack(pady=(0, 20))
         
-        self.devices_frame = ttk.Frame(self.main_frame, style='Custom.TFrame')
-        self.devices_frame.pack(pady=5, fill=tk.X)
-        
-        self.devices_label = ttk.Label(
-            self.devices_frame,
-            text="Available Devices:",
-            style='Custom.TLabel'
-        )
-        self.devices_label.pack(padx=5)
-        
-        self.devices_combo = ttk.Combobox(
-            self.devices_frame,
-            width=30,
-            state='readonly'
-        )
-        self.devices_combo.pack(padx=5, fill=tk.X, expand=True)
-        
-        self.refresh_button = ttk.Button(
-            self.devices_frame,
-            text="🔄 Refresh",
-            command=self.scan_network,
-            style='Custom.TButton'
-        )
-        self.refresh_button.pack(side=tk.LEFT, padx=5)
+        self.left_panel = ttk.Frame(self.main_frame, style='Custom.TFrame')
+        self.left_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
 
-        self.status_label = ttk.Label(
-            self.main_frame,
-            text="Ready to share",
-            style='Custom.TLabel'
-        )
-        self.status_label.pack(side=tk.TOP, pady=5)
-        
-        self.connection_frame = ttk.Frame(self.main_frame, style='Custom.TFrame')
-        self.connection_frame.pack(fill=tk.X, pady=2)
+        self.right_panel = ttk.Frame(self.main_frame, style='Custom.TFrame')
+        self.right_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        self.connection_frame = ttk.LabelFrame(self.left_panel, text="Connection", style='Custom.TFrame')
+        self.connection_frame.pack(fill=tk.X, pady=(0, 10), padx=5)
+
+        connection_status_frame = ttk.Frame(self.connection_frame, style='Custom.TFrame')
+        connection_status_frame.pack(fill=tk.X, padx=5, pady=5)
 
         self.connection_indicator = ttk.Label(
-            self.connection_frame,
+            connection_status_frame,
             text="●",
             style='Custom.TLabel',
             font=('Segoe UI', 14)
@@ -101,11 +87,167 @@ class LANClipboard:
         self.connection_indicator.pack(side=tk.LEFT, padx=5)
 
         self.connection_status = ttk.Label(
-            self.connection_frame,
+            connection_status_frame,
             text="Not Connected",
             style='Custom.TLabel'
         )
         self.connection_status.pack(side=tk.LEFT, padx=5)
+
+        devices_frame = ttk.Frame(self.connection_frame, style='Custom.TFrame')
+        devices_frame.pack(fill=tk.X, padx=5, pady=5)
+
+        self.devices_label = ttk.Label(
+            devices_frame,
+            text="Available Devices:",
+            style='Custom.TLabel'
+        )
+        self.devices_label.pack(side=tk.LEFT, padx=5)
+
+        self.devices_combo = ttk.Combobox(
+            devices_frame,
+            width=30,
+            state='readonly'
+        )
+        self.devices_combo.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
+
+        self.refresh_button = ttk.Button(
+            devices_frame,
+            text="🔄 Refresh",
+            command=self.start_scan,
+            style='Custom.TButton'
+        )
+        self.refresh_button.pack(side=tk.LEFT, padx=5)
+
+        key_frame = ttk.LabelFrame(self.left_panel, text="Encryption", style='Custom.TFrame')
+        key_frame.pack(fill=tk.X, pady=(0, 10), padx=5)
+
+        self.key_entry = ttk.Entry(key_frame, show="*")
+        self.key_entry.pack(side=tk.LEFT, padx=5, pady=5, expand=True, fill=tk.X)
+
+        key_buttons_frame = ttk.Frame(key_frame, style='Custom.TFrame')
+        key_buttons_frame.pack(fill=tk.X, padx=5, pady=5)
+
+        ttk.Button(
+            key_buttons_frame,
+            text="Set Key",
+            command=self.update_encryption_key,
+            style='Custom.TButton'
+        ).pack(side=tk.LEFT, padx=2)
+
+        ttk.Button(
+            key_buttons_frame,
+            text="Generate Key",
+            command=self.generate_new_key,
+            style='Custom.TButton'
+        ).pack(side=tk.LEFT, padx=2)
+
+        text_frame = ttk.LabelFrame(self.right_panel, text="Content", style='Custom.TFrame')
+        text_frame.pack(fill=tk.BOTH, expand=True, padx=5)
+
+        self.text_area = tk.Text(
+            text_frame,
+            height=8,
+            width=40,
+            font=('Segoe UI', 10),
+            relief="solid",
+            borderwidth=1,
+            padx=10,
+            pady=10
+        )
+        self.text_area.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        self.text_area.configure(
+            bg="white",
+            fg="black",
+            selectbackground="#2980b9",
+            selectforeground="white"
+        )
+
+        clipboard_frame = ttk.Frame(text_frame, style='Custom.TFrame')
+        clipboard_frame.pack(fill=tk.X, padx=5, pady=5)
+
+        self.copy_button = ttk.Button(
+            clipboard_frame,
+            text="📝 Copy",
+            command=self.copy_to_clipboard,
+            style='Custom.TButton'
+        )
+        self.copy_button.pack(side=tk.LEFT, padx=2)
+
+        self.paste_button = ttk.Button(
+            clipboard_frame,
+            text="📥 Paste",
+            command=self.paste_from_clipboard,
+            style='Custom.TButton'
+        )
+        self.paste_button.pack(side=tk.LEFT, padx=2)
+
+        self.clear_button = ttk.Button(
+            clipboard_frame,
+            text="🗑️ Clear",
+            command=self.clear_text,
+            style='Custom.TButton'
+        )
+        self.clear_button.pack(side=tk.LEFT, padx=2)
+
+        share_frame = ttk.Frame(text_frame, style='Custom.TFrame')
+        share_frame.pack(fill=tk.X, padx=5, pady=5)
+
+        self.send_button = ttk.Button(
+            share_frame,
+            text="📤 Share Text",
+            command=self.share_text,
+            style='Custom.TButton'
+        )
+        self.send_button.pack(side=tk.LEFT, padx=2)
+
+        self.file_button = ttk.Button(
+            share_frame,
+            text="📁 Share File",
+            command=self.share_file,
+            style='Custom.TButton'
+        )
+        self.file_button.pack(side=tk.LEFT, padx=2)
+
+        history_frame = ttk.LabelFrame(self.right_panel, text="History", style='Custom.TFrame')
+        history_frame.pack(fill=tk.X, padx=5, pady=(10, 0))
+
+        self.history_combo = ttk.Combobox(
+            history_frame,
+            width=40,
+            state='readonly'
+        )
+        self.history_combo.pack(side=tk.LEFT, padx=5, pady=5, expand=True, fill=tk.X)
+        self.history_combo.bind('<<ComboboxSelected>>', self.load_history)
+
+        bottom_frame = ttk.Frame(self.main_frame, style='Custom.TFrame')
+        bottom_frame.pack(fill=tk.X, pady=(10, 0))
+
+        self.status_label = ttk.Label(
+            bottom_frame,
+            text="Ready to share",
+            style='Custom.TLabel'
+        )
+        self.status_label.pack(side=tk.LEFT, padx=5)
+
+        controls_frame = ttk.Frame(bottom_frame, style='Custom.TFrame')
+        controls_frame.pack(side=tk.RIGHT, padx=5)
+
+        self.settings_button = ttk.Button(
+            controls_frame,
+            text="⚙️ Settings",
+            command=self.open_settings,
+            style='Custom.TButton'
+        )
+        self.settings_button.pack(side=tk.LEFT, padx=2)
+
+        self.help_button = ttk.Button(
+            controls_frame,
+            text="❓ Help",
+            command=self.show_help,
+            style='Custom.TButton'
+        )
+        self.help_button.pack(side=tk.LEFT, padx=2)
 
         self.MCAST_GRP = '224.1.1.1'
         self.MCAST_PORT = 5007
@@ -122,96 +264,6 @@ class LANClipboard:
         self.setup_encryption()
         self.setup_network()
 
-        self.text_frame = ttk.Frame(self.main_frame, style='Custom.TFrame')
-        self.text_frame.pack(pady=10, fill=tk.BOTH, expand=True)
-        
-        self.text_area = tk.Text(
-            self.text_frame,
-            height=8,
-            width=40,
-            font=('Segoe UI', 10),
-            relief="solid",
-            borderwidth=1,
-            padx=10,
-            pady=10
-        )
-        self.text_area.pack(fill=tk.BOTH, side=tk.TOP, expand=True, padx=5)
-        
-        self.text_area.configure(
-            bg="white",
-            fg="black",
-            selectbackground="#2980b9",
-            selectforeground="white"
-        )
-
-        self.button_frame = ttk.Frame(self.main_frame, style='Custom.TFrame')
-        self.button_frame.pack(pady=5, fill=tk.X)
-
-        self.send_button = ttk.Button(
-            self.button_frame,
-            text="📝 Share",
-            command=self.share_text,
-            style='Custom.TButton'
-        )
-        self.send_button.pack(pady=2)
-
-        self.clipboard_frame = ttk.Frame(self.button_frame, style='Custom.TFrame')
-        self.clipboard_frame.pack(fill=tk.X, pady=5)
-        
-        self.copy_button = ttk.Button(
-            self.clipboard_frame,
-            text="📝 Copy",
-            command=self.copy_to_clipboard,
-            style='Custom.TButton'
-        )
-        self.copy_button.pack(side=tk.LEFT, padx=5)
-        
-        self.paste_button = ttk.Button(
-            self.clipboard_frame,
-            text="📥 Paste",
-            command=self.paste_from_clipboard,
-            style='Custom.TButton'
-        )
-        self.paste_button.pack(side=tk.LEFT, padx=5)
-
-        self.file_button = ttk.Button(
-            self.button_frame,
-            text="Share File",
-            command=self.share_file,
-            style='Custom.TButton'
-        )
-        self.file_button.pack(pady=2)
-
-        self.controls_frame = ttk.Frame(self.button_frame, style='Custom.TFrame')
-        self.controls_frame.pack(fill=tk.X, pady=2)
-
-        self.settings_button = ttk.Button(
-            self.controls_frame,
-            text="⚙️ Settings",
-            command=self.open_settings,
-            style='Custom.TButton',
-            width=10
-        )
-        self.settings_button.pack(side=tk.LEFT, padx=5, expand=True)
-
-        self.clear_button = ttk.Button(
-            self.controls_frame,
-            text="🗑️ Clear",
-            command=self.clear_text,
-            style='Custom.TButton',
-            width=10
-        )
-        self.clear_button.pack(side=tk.LEFT, padx=5, expand=True)
-
-        self.help_button = ttk.Button(
-            self.controls_frame,
-            text="❓ Help",
-            command=self.show_help,
-            style='Custom.TButton',
-            width=10
-        )
-        self.help_button.pack(side=tk.LEFT, padx=5, expand=True)
-
         self.history = []
         self.max_history = 10
         
@@ -226,25 +278,7 @@ class LANClipboard:
         self.history_combo.pack(side=tk.LEFT, padx=5)
         self.history_combo.bind('<<ComboboxSelected>>', self.load_history)
 
-        self.key_frame = ttk.Frame(self.main_frame, style='Custom.TFrame')
-        self.key_frame.pack(fill=tk.X, pady=5)
-
-        self.key_entry = ttk.Entry(self.key_frame, show="*")
-        self.key_entry.pack(side=tk.LEFT, padx=5, expand=True, fill=tk.X)
-        
-        ttk.Button(
-            self.key_frame,
-            text="Set Key",
-            command=self.update_encryption_key,
-            style='Custom.TButton'
-        ).pack(side=tk.LEFT, padx=2)
-
-        ttk.Button(
-            self.key_frame,
-            text="Generate Key",
-            command=self.generate_new_key,
-            style='Custom.TButton'
-        ).pack(side=tk.LEFT, padx=2)
+        self.scanning = False
 
     def get_local_ip(self):
         """Get the local IP address of this machine"""
@@ -259,58 +293,156 @@ class LANClipboard:
             return '127.0.0.1'
 
     def scan_network(self):
-        """Scan the network for active devices using optimized scanning"""
+        """Scan the network for active devices with improved error handling"""
         try:
+            self.refresh_button.config(state='disabled')
+            self.devices_combo.config(state='disabled')
             self.status_label.config(text="Scanning network...")
-            self.active_devices = []
+            self.window.update()
             
+            self.active_devices = []
             self.active_devices.append(("This PC", self.local_ip))
             
-            ip_parts = self.local_ip.split('.')
-            subnet = '.'.join(ip_parts[:3])
-            
-            common_ports = [80, 443, 8080, 5000]  
-            ips_to_scan = [f"{subnet}.{i}" for i in range(1, 255) if f"{subnet}.{i}" != self.local_ip]
-            
-            with ThreadPoolExecutor(max_workers=20) as executor:
-                future_to_ip = {
-                    executor.submit(self.check_host, ip, common_ports): ip 
-                    for ip in ips_to_scan
-                }
-                
-                for future in as_completed(future_to_ip):
-                    ip = future_to_ip[future]
-                    try:
-                        if future.result():
-                            try:
-                                hostname = socket.gethostbyaddr(ip)[0]
-                            except Exception:
-                                hostname = f"Device ({ip})"
-                            self.active_devices.append((hostname, ip))
-                    except Exception:
-                        continue
-            
-            self.devices_combo['values'] = [f"{name} - {ip}" for name, ip in self.active_devices]
-            if self.devices_combo['values']:
-                self.devices_combo.set(self.devices_combo['values'][0])
-            
-            self.status_label.config(text="Network scan complete")
-        except Exception as e:
-            print(f"Scan error: {str(e)}")
-            self.status_label.config(text="Scan failed")
-
-    def check_host(self, ip, ports):
-        """Check if host is available by attempting to connect to common ports"""
-        for port in ports:
             try:
-                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-                    sock.settimeout(0.5)
-                    result = sock.connect_ex((ip, port))
-                    if result == 0:
-                        return True
-            except:
-                continue
-        return False
+                ip_parts = self.local_ip.split('.')
+                subnet = '.'.join(ip_parts[:3])
+            except Exception as e:
+                print(f"Network parsing error: {e}")
+                subnet = "192.168.1"
+                
+            try:
+                batch_size = 10
+                ips_to_scan = [
+                    f"{subnet}.{i}" for i in range(1, 255) 
+                    if f"{subnet}.{i}" != self.local_ip
+                ]
+                ip_batches = [
+                    ips_to_scan[i:i + batch_size] 
+                    for i in range(0, len(ips_to_scan), batch_size)
+                ]
+            except Exception as e:
+                print(f"Batch creation error: {e}")
+                self.handle_scan_error("Error creating scan batches")
+                return
+
+            scan_timeout = threading.Timer(10.0, self.handle_scan_timeout)
+            scan_timeout.start()
+            
+            try:
+                with ThreadPoolExecutor(max_workers=25) as executor:
+                    for batch in ip_batches:
+                        if not hasattr(self, 'scanning') or not self.scanning:
+                            break
+                            
+                        future_to_ip = {
+                            executor.submit(self.check_host, ip): ip 
+                            for ip in batch
+                        }
+                        
+                        for future in as_completed(future_to_ip, timeout=5):
+                            ip = future_to_ip[future]
+                            try:
+                                result = future.result(timeout=1)
+                                if result:
+                                    self.add_discovered_device(ip)
+                            except (TimeoutError, Exception) as e:
+                                print(f"Error scanning {ip}: {e}")
+                                continue
+                                
+            except Exception as e:
+                print(f"Scanning error: {e}")
+            finally:
+                scan_timeout.cancel()
+                self.cleanup_scan()
+                
+        except Exception as e:
+            print(f"Fatal scan error: {e}")
+            self.handle_scan_error("Scanning failed")
+
+    def add_discovered_device(self, ip):
+        """Safely add discovered device to the list"""
+        try:
+            socket.setdefaulttimeout(1)
+            try:
+                hostname = socket.gethostbyaddr(ip)[0]
+            except Exception:
+                hostname = f"Device ({ip})"
+                
+            self.active_devices.append((hostname, ip))
+            
+            self.window.after(0, self.update_device_list)
+        except Exception as e:
+            print(f"Error adding device {ip}: {e}")
+
+    def update_device_list(self):
+        """Update the devices combo box safely"""
+        try:
+            values = [f"{name} - {ip}" for name, ip in self.active_devices]
+            self.devices_combo['values'] = values
+            if values and not self.devices_combo.get():
+                self.devices_combo.set(values[0])
+        except Exception as e:
+            print(f"Error updating device list: {e}")
+
+    def check_host(self, ip):
+        """Check if host is available with improved error handling"""
+        try:
+            common_ports = [self.PORT, 80, 443, 22]
+            for port in common_ports:
+                try:
+                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                        sock.settimeout(0.2)
+                        if sock.connect_ex((ip, port)) == 0:
+                            return True
+                except socket.error:
+                    continue
+                
+            try:
+                if platform.system().lower() == "windows":
+                    ping_cmd = ["ping", "-n", "1", "-w", "200", ip]
+                else:
+                    ping_cmd = ["ping", "-c", "1", "-W", "1", ip]
+                
+                result = subprocess.run(
+                    ping_cmd,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=1
+                )
+                return result.returncode == 0
+            except (subprocess.TimeoutExpired, subprocess.SubprocessError):
+                return False
+                
+        except Exception as e:
+            print(f"Host check error for {ip}: {e}")
+            return False
+
+    def handle_scan_error(self, message):
+        """Handle scanning errors gracefully"""
+        self.status_label.config(text=message)
+        self.cleanup_scan()
+
+    def handle_scan_timeout(self):
+        """Handle scan timeout"""
+        self.scanning = False
+        self.window.after(0, lambda: self.status_label.config(text="Scan timed out"))
+        self.cleanup_scan()
+
+    def cleanup_scan(self):
+        """Clean up after scanning"""
+        self.scanning = False
+        self.refresh_button.config(state='normal')
+        self.devices_combo.config(state='readonly')
+        
+        if not self.active_devices:
+            self.status_label.config(text="No devices found")
+        else:
+            self.status_label.config(text=f"Found {len(self.active_devices)} devices")
+
+    def start_scan(self):
+        """Start network scan with proper initialization"""
+        self.scanning = True
+        self.scan_network()
 
     def setup_encryption(self):
         """Setup encryption with a default keyword"""
