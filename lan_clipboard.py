@@ -14,12 +14,16 @@ import os
 import struct
 import ctypes
 import sys
+import atexit
 
 class LANClipboard:
     def __init__(self):
         self.window = tk.Tk()
         self.window.title("LAN Clipboard")
         self.window.geometry("800x600")
+        
+        # Add window close handler
+        self.window.protocol("WM_DELETE_WINDOW", self.on_closing)
         
         try:
             self.window.iconbitmap("clipboard.ico")
@@ -260,6 +264,15 @@ class LANClipboard:
             self.network = ipaddress.IPv4Network("192.168.1.0/24")
         
         self.active_devices = []
+        
+        # Initialize network components
+        self.HOST = '0.0.0.0'
+        self.PORT = 5000
+        self.server_socket = None
+        self.listen_thread = None
+        self.scan_thread = None
+        self.discovery_thread = None
+        self.cipher_suite = None
 
         self.setup_encryption()
         self.setup_network()
@@ -279,6 +292,11 @@ class LANClipboard:
         self.history_combo.bind('<<ComboboxSelected>>', self.load_history)
 
         self.scanning = False
+
+        atexit.register(self.cleanup_resources)
+        
+        self.running = True
+        self.threads = []
 
     def get_local_ip(self):
         """Get the local IP address of this machine"""
@@ -461,79 +479,50 @@ class LANClipboard:
         return b64encode(keyword[:32])
 
     def setup_network(self):
-        """Setup network services"""
+        """Setup network services with better thread management"""
         try:
             self.HOST = '0.0.0.0'
             self.PORT = 5000
             self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.server_socket.bind((self.HOST, self.PORT))
             self.server_socket.listen()
+            self.server_socket.settimeout(1)  # Add timeout for clean shutdown
 
-            self.listen_thread = threading.Thread(target=self.listen_for_connections, daemon=True)
-            self.listen_thread.start()
-
-            self.scan_thread = threading.Thread(target=self.scan_network, daemon=True)
-            self.scan_thread.start()
-
-            self.discovery_thread = threading.Thread(target=self.run_discovery_service, daemon=True)
-            self.discovery_thread.start()
+            # Create and track threads
+            self.threads.extend([
+                threading.Thread(target=self.listen_for_connections, daemon=True),
+                threading.Thread(target=self.scan_network, daemon=True),
+                threading.Thread(target=self.run_discovery_service, daemon=True)
+            ])
+            
+            # Start threads
+            for thread in self.threads:
+                thread.start()
 
         except Exception as e:
             print(f"Network setup error: {e}")
             self.status_label.config(text="Network setup failed")
 
     def listen_for_connections(self):
-        """Listen for incoming connections and handle received data"""
-        while True:
+        """Listen for incoming connections with clean shutdown support"""
+        while self.running:
             try:
-                client_socket, address = self.server_socket.accept()
+                try:
+                    client_socket, address = self.server_socket.accept()
+                except socket.timeout:
+                    continue
+                except Exception as e:
+                    if self.running:  # Only log if not shutting down
+                        print(f"Accept error: {e}")
+                    continue
+
                 client_socket.settimeout(10)
-
-                self.window.after(0, lambda: self.connection_indicator.config(foreground='orange'))
-                self.window.after(0, lambda: self.connection_status.config(text="Receiving..."))
-
-                data = b""
-                while True:
-                    chunk = client_socket.recv(8192)
-                    if not chunk:
-                        break
-                    data += chunk
-
-                if data:
-                    try:
-                        decrypted_data = self.cipher_suite.decrypt(data)
-                        received_data = json.loads(decrypted_data.decode())
-
-                        if received_data.get("type") == "file":
-                            file_data = b64decode(received_data["data"])
-                            file_name = received_data["name"]
-                            save_path = filedialog.asksaveasfilename(
-                                defaultextension=os.path.splitext(file_name)[1],
-                                initialfile=file_name
-                            )
-                            if save_path:
-                                with open(save_path, 'wb') as f:
-                                    f.write(file_data)
-                                self.window.after(0, lambda: self.status_label.config(
-                                    text=f"Received file from {address[0]}"
-                                ))
-                        else:
-                            self.window.after(0, lambda: self.text_area.delete("1.0", tk.END))
-                            self.window.after(0, lambda: self.text_area.insert("1.0", received_data["text"]))
-                            self.window.after(0, lambda: self.add_to_history(received_data["text"]))
-                            self.window.after(0, lambda: self.status_label.config(
-                                text=f"Received text from {address[0]}"
-                            ))
-
-                        self.window.after(0, lambda: self.update_status(connected=True))
-                    except Exception as e:
-                        self.window.after(0, lambda e=e: self.status_label.config(text=f"Decryption failed: {str(e)}"))
-                        self.window.after(0, lambda: self.update_status(connected=False))
-
-                client_socket.close()
+                self.handle_client_connection(client_socket, address)
 
             except Exception as e:
-                print(f"Listen error: {str(e)}")
+                if self.running:
+                    print(f"Listen error: {str(e)}")
 
     def copy_to_clipboard(self):
         text = self.text_area.get("1.0", tk.END).strip()
@@ -603,23 +592,27 @@ class LANClipboard:
             self.text_area.insert("1.0", selected)
 
     def run_discovery_service(self):
-        """Run network discovery service"""
+        """Run discovery service with clean shutdown support"""
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            sock.settimeout(1)  # Add timeout for clean shutdown
             
             try:
                 sock.bind(('', self.MCAST_PORT))
                 mreq = struct.pack("4sl", socket.inet_aton(self.MCAST_GRP), socket.INADDR_ANY)
                 sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
                 
-                while True:
+                while self.running:
                     try:
                         data, addr = sock.recvfrom(1024)
                         if data == b"DISCOVER":
                             sock.sendto(b"AVAILABLE", addr)
+                    except socket.timeout:
+                        continue
                     except Exception as e:
-                        print(f"Discovery receive error: {e}")
+                        if self.running:
+                            print(f"Discovery receive error: {e}")
                         continue
                         
             except Exception as e:
@@ -657,7 +650,10 @@ class LANClipboard:
             print(f"Key generation error: {e}")
 
     def run(self):
-        self.window.mainloop()
+        try:
+            self.window.mainloop()
+        finally:
+            self.cleanup_resources()
 
     def open_settings(self):
         """Open settings dialog"""
@@ -760,6 +756,30 @@ LAN Clipboard Help:
                 self.status_label.config(text="Error sharing text: Connection failed")
                 self.update_status(connected=False)
                 print(f"Share error: {str(e)}")
+
+    def cleanup_resources(self):
+        """Clean up resources before exit"""
+        print("Cleaning up resources...")
+        self.running = False
+        
+        # Close server socket
+        if hasattr(self, 'server_socket'):
+            try:
+                self.server_socket.close()
+            except Exception as e:
+                print(f"Error closing server socket: {e}")
+
+        # Wait for threads to finish
+        for thread in self.threads:
+            try:
+                thread.join(timeout=2)
+            except Exception as e:
+                print(f"Error joining thread: {e}")
+
+    def on_closing(self):
+        """Handle window closing event"""
+        self.cleanup_resources()
+        self.window.destroy()
 
 class SettingsDialog:
     def __init__(self, parent):
