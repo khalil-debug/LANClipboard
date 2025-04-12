@@ -1,3 +1,5 @@
 tkinter
 cryptography
 pyperclip
+sv_ttk
+zeroconf
