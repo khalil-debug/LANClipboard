@@ -20,9 +20,6 @@ class ZeroconfListener:
         self.app = app_instance
 
     def remove_service(self, zeroconf, type, name):
-        if not self.app.running:
-            return
-            
         print(f"Service {name} removed")
         info = zeroconf.get_service_info(type, name)
         ip_address = None
@@ -35,9 +32,6 @@ class ZeroconfListener:
             self.app.remove_discovered_device_by_name(name)
 
     def add_service(self, zeroconf, type, name):
-        if not self.app.running:
-            return
-            
         info = zeroconf.get_service_info(type, name)
         print(f"Service {name} added, service info: {info}")
         if info:
@@ -1196,36 +1190,57 @@ class LANClipboard:
             self.running = False
         
         # --- Zeroconf Cleanup --- 
-        if hasattr(self, 'zeroconf') and self.zeroconf:
+        zc = getattr(self, 'zeroconf', None)
+        info = getattr(self, 'service_info', None)
+        browser = getattr(self, 'service_browser', None)
+        
+        if zc:
             print("Closing Zeroconf...")
+            if info:
+                print("Unregistering service...")
+                try:
+                    zc.unregister_service(info)
+                    print("Service unregistered.")
+                except Exception as e:
+                     print(f"Error unregistering Zeroconf service during cleanup: {e}")
+
+            if browser: 
+                try:
+                    if hasattr(browser, '_stop_exec'):
+                        browser._stop_exec.set()
+                    print("Zeroconf browser cancellation requested.")
+                except Exception as e:
+                     print(f"Error stopping/cancelling Zeroconf browser: {e}")
+                     
             try:
-                if self.service_info:
-                    print("Unregistering service...")
-                    self.zeroconf.unregister_service(self.service_info)
-            except Exception as e:
-                 print(f"Error unregistering Zeroconf service: {e}")
-                 
-            try:
-                 self.zeroconf.close()
+                 zc.close()
                  print("Zeroconf closed.")
             except Exception as e:
-                print(f"Error closing Zeroconf: {e}")
+                print(f"Error closing Zeroconf instance: {e}")
         # ------------------------
 
-        if hasattr(self, 'server_socket') and self.server_socket:
+        # --- Socket Cleanup --- 
+        sock = getattr(self, 'server_socket', None)
+        if sock:
             try:
-                self.server_socket.close()
+                sock.shutdown(socket.SHUT_RDWR)
+            except (OSError, socket.error) as e:
+                 print(f"Note: Error during socket shutdown (often expected if not connected): {e}")
+            try:
+                sock.close()
                 print("Server socket closed")
             except Exception as e:
                 print(f"Error closing server socket: {e}")
+        # ------------------------
 
-        if hasattr(self, 'listen_thread') and self.listen_thread:
-            try:
-                if self.listen_thread.is_alive():
-                    print(f"Waiting for thread {self.listen_thread.name} to finish...")
-                    self.listen_thread.join(timeout=1)
-            except Exception as e:
-                print(f"Error joining thread {self.listen_thread.name}: {e}")
+        # --- Thread Cleanup --- 
+        listener_thread = getattr(self, 'listen_thread', None)
+        if listener_thread and listener_thread.is_alive():
+            print(f"Waiting for thread {listener_thread.name} to finish...")
+            listener_thread.join(timeout=1.0)
+            if listener_thread.is_alive():
+                print(f"Warning: Thread {listener_thread.name} did not finish gracefully.")
+        # ------------------------
                     
         print("Cleanup completed")
 
